@@ -1,0 +1,30 @@
+server:
+  listen: ":8080"
+  read_timeout: "30s"
+  write_timeout: "30s"
+  shutdown_timeout: "10s"
+  max_header_bytes: "2MB"
+
+
+middlewares:
+  - type: rate_limit
+    requests: 100
+    window: "1m"
+    burst: 20
+
+  - type: request_id
+  - type: security_headers
+
+routes:
+  api.example.com:
+    backend: "http://localhost:3000"
+
+  admin.example.com:
+    backend: "http://localhost:3001"
+    middlewares:
+      - type: basic_auth
+        users:
+          admin: "$2a$10$2fRZfGJvLm7ltnPRBBgmTeue3h3F5UB8B2fRZfGJvLm7ltnPR"
+          editor: "$2a$10$8EhVMA3LFwFnKGsFGPmfYuD8c9fNwL5L8nVMA3LFwFnKGsFG"
+        realm: "Admin Panel"
+
