@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// ?: Почему это должно быть в пакете middleware?
 type MiddlewareType string
 
 const (

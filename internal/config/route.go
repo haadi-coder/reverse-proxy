@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/haadi-coder/reverse-proxy/internals/middleware"
+	"github.com/haadi-coder/reverse-proxy/internal/middleware"
 )
 
 type RouteConfig struct {

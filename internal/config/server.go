@@ -11,8 +11,8 @@ type ServerConfig struct {
 	WriteTimeout    time.Duration `yaml:"write_timeout"`
 	IdleTimeout     time.Duration `yaml:"idle_timeout"`
 	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
-	MaxHeaderBytes  int64         `yaml:"max_header_bytes"`
-	MaxRequestBody  int64         `yaml:"max_request_body"`
+	MaxHeaderBytes  string        `yaml:"max_header_bytes"`
+	MaxRequestBody  string        `yaml:"max_request_body"`
 }
 
 func (c *ServerConfig) applyDefaults() {
@@ -26,11 +26,11 @@ func (c *ServerConfig) applyDefaults() {
 		c.IdleTimeout = 60 * time.Second
 	}
 
-	if c.MaxHeaderBytes == 0 {
-		c.MaxHeaderBytes = 1 << 20
+	if c.MaxHeaderBytes == "" {
+		c.MaxHeaderBytes = "1MB"
 	}
-	if c.MaxRequestBody == 0 {
-		c.MaxRequestBody = 10 << 20
+	if c.MaxRequestBody == "" {
+		c.MaxRequestBody = "10MB"
 	}
 	if c.ShutdownTimeout == 0 {
 		c.ShutdownTimeout = 30 * time.Second
@@ -52,12 +52,6 @@ func (c *ServerConfig) validate() error {
 	}
 	if c.ShutdownTimeout < 0 {
 		return fmt.Errorf("shutdown_timeout can't be negative")
-	}
-	if c.MaxHeaderBytes < 0 {
-		return fmt.Errorf("max_header_bytes can't be negative")
-	}
-	if c.MaxRequestBody < 0 {
-		return fmt.Errorf("max_request_body can't be negative")
 	}
 
 	return nil

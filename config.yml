@@ -1,9 +1,8 @@
 server:
-  listen: ":8080"
+  listen: ":8081"
   read_timeout: "30s"
   write_timeout: "30s"
   shutdown_timeout: "10s"
-  max_header_bytes: "2MB"
 
 
 middlewares:
@@ -17,7 +16,7 @@ middlewares:
 
 routes:
   api.example.com:
-    backend: "http://localhost:3000"
+    backend: "http://localhost:8080"
 
   admin.example.com:
     backend: "http://localhost:3001"

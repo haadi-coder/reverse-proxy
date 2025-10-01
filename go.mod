@@ -2,7 +2,10 @@ module github.com/haadi-coder/reverse-proxy
 
 go 1.25.0
 
-require github.com/ilyakaznacheev/cleanenv v1.5.0
+require (
+	github.com/haadi-coder/filesize v0.0.0-20250714125257-edcf44796703
+	github.com/ilyakaznacheev/cleanenv v1.5.0
+)
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
