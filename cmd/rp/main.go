@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/haadi-coder/filesize"
 	"github.com/haadi-coder/reverse-proxy/internal/config"
@@ -13,20 +16,40 @@ import (
 	"github.com/haadi-coder/reverse-proxy/internal/proxy"
 )
 
+const revision = "unknown"
+
 func main() {
-	yamlCfg, err := config.Load()
-	if err != nil {
-		fmt.Print(err)
-		return
+	var version bool
+	flag.BoolVar(&version, "version", false, "Print appplication version (long)")
+	flag.BoolVar(&version, "v", false, "Print application version (short)")
+
+	flag.Parse()
+
+	if version {
+		fmt.Printf("Reverse Proxy: %s\n", revision)
+		os.Exit(0)
 	}
 
+	arg := flag.Arg(0)
+	yamlCfg, err := config.Load(arg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to load yaml config: %v\n", err)
+		os.Exit(1)
+	}
+
+	setupLogger(yamlCfg)
+
+	if err := run(yamlCfg); err != nil {
+		slog.Error("failed to start reverse-proxy", logger.Error(err))
+		os.Exit(1)
+	}
+}
+
+func run(yamlCfg *config.Config) error {
 	cfg, err := MapConfig(yamlCfg)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return fmt.Errorf("failed to map yaml config to proxy one: %w", err)
 	}
-
-	setupLogger(cfg)
 
 	slog.Info("starting proxy", slog.String("addr", cfg.Server.Listen))
 
@@ -34,7 +57,7 @@ func main() {
 
 	gMiddlewares, err := buildMiddlewares(yamlCfg.Middlewares)
 	if err != nil {
-		slog.Error("failed to build global middlewares", logger.Error(err))
+		return fmt.Errorf("failed to build global middlewares: %w", err)
 	}
 
 	p.Use(gMiddlewares...)
@@ -42,9 +65,7 @@ func main() {
 	for host, route := range cfg.Routes {
 		middlewares, err := buildMiddlewares(route.Middlewares)
 		if err != nil {
-			slog.Error("failed to build route middlewares",
-				slog.String("host", host),
-				slog.String("error", err.Error()))
+			return fmt.Errorf("failed to build route %s middlewares: %w", host, err)
 		}
 
 		p.Route(
@@ -59,7 +80,14 @@ func main() {
 		)
 	}
 
-	p.Run(context.Background())
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	if err := p.Run(ctx); err != nil {
+		return fmt.Errorf("failed to start proxy server: %w", err)
+	}
+
+	return nil
 }
 
 func MapConfig(cliCfg *config.Config) (*proxy.Config, error) {
@@ -113,7 +141,7 @@ func MapConfig(cliCfg *config.Config) (*proxy.Config, error) {
 	return proxyCfg, nil
 }
 
-func setupLogger(cfg *proxy.Config) {
+func setupLogger(cfg *config.Config) {
 	var handler slog.Handler
 	var level slog.Level
 

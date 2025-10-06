@@ -15,10 +15,10 @@ type Config struct {
 	Middlewares []middleware.MiddlewareConfig `yaml:"middlewares,omitempty"`
 }
 
-func Load() (*Config, error) {
+func Load(path string) (*Config, error) {
 	var cfg Config
 
-	if err := cleanenv.ReadConfig("config.yml", &cfg); err != nil {
+	if err := cleanenv.ReadConfig(path, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
