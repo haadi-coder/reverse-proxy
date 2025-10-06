@@ -2,13 +2,16 @@ package proxy
 
 import (
 	"time"
+
+	"github.com/haadi-coder/reverse-proxy/internal/middleware"
 )
 
 type Config struct {
-	Server    ServerConfig
-	Log       LogConfig
-	AccessLog *AccessLogConfig
-	Routes    map[string]*RouteConfig
+	Server      ServerConfig
+	Log         LogConfig
+	AccessLog   *AccessLogConfig
+	Routes      map[string]*RouteConfig
+	Middlewares []middleware.MiddlewareConfig
 }
 
 type ServerConfig struct {
@@ -30,6 +33,7 @@ type AccessLogConfig struct {
 	Format string
 }
 
+
 type RouteConfig struct {
 	Backend               string
 	PreserveHost          bool
@@ -37,4 +41,5 @@ type RouteConfig struct {
 	ResponseHeaderTimeout time.Duration
 	IdleConnTimeout       time.Duration
 	MaxIdleConns          int
+	Middlewares           []middleware.MiddlewareConfig
 }

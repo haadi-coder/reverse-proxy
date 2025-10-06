@@ -7,27 +7,15 @@ import (
 	"time"
 )
 
-type MiddlewareType string
-
-const (
-	TypeRateLimit       MiddlewareType = "rate_limit"
-	TypeBasicAuth       MiddlewareType = "basic_auth"
-	TypeCORS            MiddlewareType = "cors"
-	TypeHeaders         MiddlewareType = "headers"
-	TypeCompress        MiddlewareType = "compress"
-	TypeRequestID       MiddlewareType = "request_id"
-	TypeSecurityHeaders MiddlewareType = "security_headers"
-)
-
 type MiddlewareConfig struct {
-	Type            MiddlewareType `yaml:"type"`
-	RatelimitConfig `yaml:",inline"`
-	BasicAuthConfig `yaml:",inline"`
-	CORSConfig      `yaml:",inline"`
-	HeadersConfig   `yaml:",inline"`
-	RequestIDConfig `yaml:",inline"`
-	SecurityHeaders `yaml:",inline"`
-	CompressConfig  `yaml:",inline"`
+	Type                  MiddlewareType `yaml:"type"`
+	RatelimitConfig       `yaml:",inline"`
+	BasicAuthConfig       `yaml:",inline"`
+	CORSConfig            `yaml:",inline"`
+	HeadersConfig         `yaml:",inline"`
+	RequestIDConfig       `yaml:",inline"`
+	SecurityHeadersConfig `yaml:",inline"`
+	CompressConfig        `yaml:",inline"`
 }
 
 type RatelimitConfig struct {
@@ -57,7 +45,7 @@ type HeadersConfig struct {
 type HeaderRules struct {
 	Add    map[string]string `yaml:"add"`
 	Set    map[string]string `yaml:"set"`
-	Remove map[string]string `yaml:"remove"`
+	Remove []string          `yaml:"remove"`
 }
 
 type CompressConfig struct {
@@ -70,7 +58,7 @@ type RequestIDConfig struct {
 	HeaderName string `yaml:"header_name"`
 }
 
-type SecurityHeaders struct {
+type SecurityHeadersConfig struct {
 	ContentTypeOptions string `yaml:"content_type_options"`
 	FrameOptions       string `yaml:"frame_options"`
 	XSSProtection      string `yaml:"xss_protection"`
@@ -194,4 +182,23 @@ func isBcryptHash(hash string) bool {
 	return strings.HasPrefix(hash, "$2a") ||
 		strings.HasPrefix(hash, "$2b") ||
 		strings.HasPrefix(hash, "$2y")
+}
+
+func (c *MiddlewareConfig) Build() (Middleware, error) {
+	switch c.Type {
+	case TypeRateLimit:
+		return RateLimit(&c.RatelimitConfig), nil
+	case TypeBasicAuth:
+		return BasicAuth(&c.BasicAuthConfig), nil
+	case TypeCORS:
+		return CORS(&c.CORSConfig), nil
+	case TypeHeaders:
+		return Headers(&c.HeadersConfig), nil
+	case TypeRequestID:
+		return RequestID(&c.RequestIDConfig), nil
+	case TypeSecurityHeaders:
+		return SecurityHeaders(&c.SecurityHeadersConfig), nil
+	default:
+		return nil, fmt.Errorf("unknow middleware type: %s", c.Type)
+	}
 }

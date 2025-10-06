@@ -6,8 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 	"path"
+	"time"
 
 	"github.com/haadi-coder/reverse-proxy/internal/lib/logger"
+	"github.com/haadi-coder/reverse-proxy/internal/middleware"
 )
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +28,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	backendURL.Path = path.Join(backendURL.Path, r.URL.Path)
 	backendURL.RawQuery = r.URL.RawQuery
 
-	backendReq, err := http.NewRequest(r.Method, backendURL.String(), r.Body)
+	backendReq, err := http.NewRequestWithContext(r.Context(), r.Method, backendURL.String(), r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create backend request: %s", err.Error()), http.StatusInternalServerError)
 		return
@@ -44,7 +46,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		backendReq.Host = route.Backend.Host
 	}
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	baseHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		client := &http.Client{Transport: route.Transport}
 		resp, err := client.Do(backendReq)
 		if err != nil {
@@ -70,5 +72,21 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 
+	startTime := time.Now()
+	if p.cfg.AccessLog != nil {
+		logAccess(p.cfg.AccessLog.Format, *r, &startTime)
+	}
+
+	allMiddlewares := append(p.gmiddlewares, route.Middlewares...)
+	handler := applyMiddlewares(baseHandler, allMiddlewares)
+
 	handler.ServeHTTP(w, r)
+}
+
+func applyMiddlewares(h http.Handler, middlewares []middleware.Middleware) http.Handler {
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		h = middlewares[i](h)
+	}
+
+	return h
 }

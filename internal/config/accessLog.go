@@ -5,6 +5,8 @@ import (
 	"slices"
 )
 
+// TODO: Валидацию перенести на уровень proxy
+
 type AccessLogFormat string
 
 const (

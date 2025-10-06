@@ -8,6 +8,8 @@ import (
 
 	"github.com/haadi-coder/filesize"
 	"github.com/haadi-coder/reverse-proxy/internal/config"
+	"github.com/haadi-coder/reverse-proxy/internal/lib/logger"
+	"github.com/haadi-coder/reverse-proxy/internal/middleware"
 	"github.com/haadi-coder/reverse-proxy/internal/proxy"
 )
 
@@ -26,9 +28,24 @@ func main() {
 
 	setupLogger(cfg)
 
+	slog.Info("starting proxy", slog.String("addr", cfg.Server.Listen))
+
 	p := proxy.New(cfg)
 
+	gMiddlewares, err := buildMiddlewares(yamlCfg.Middlewares)
+	if err != nil {
+		slog.Error("failed to build global middlewares", logger.Error(err))
+	}
+
+	p.Use(gMiddlewares...)
+
 	for host, route := range cfg.Routes {
+		middlewares, err := buildMiddlewares(route.Middlewares)
+		if err != nil {
+			slog.Error("failed to build route middlewares",
+				slog.String("host", host),
+				slog.String("error", err.Error()))
+		}
 
 		p.Route(
 			host,
@@ -37,8 +54,9 @@ func main() {
 			proxy.WithIdleConnTimeout(route.IdleConnTimeout),
 			proxy.WithResponseHeaderTimeout(route.ResponseHeaderTimeout),
 			proxy.WithMaxIdleConns(route.MaxIdleConns),
+			proxy.WithDialTimeout(route.DialTimeout),
+			proxy.WithMiddlewares(middlewares...),
 		)
-
 	}
 
 	p.Run(context.Background())
@@ -86,6 +104,7 @@ func MapConfig(cliCfg *config.Config) (*proxy.Config, error) {
 			ResponseHeaderTimeout: cliRoute.ResponseHeaderTimeout,
 			IdleConnTimeout:       cliRoute.IdleConnTimeout,
 			MaxIdleConns:          cliRoute.MaxIdleConns,
+			Middlewares:           cliRoute.Middlewares,
 		}
 
 		proxyCfg.Routes[host] = route
@@ -115,4 +134,19 @@ func setupLogger(cfg *proxy.Config) {
 		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})
 	}
 	slog.SetDefault(slog.New(handler))
+}
+
+func buildMiddlewares(mwConfigs []middleware.MiddlewareConfig) ([]middleware.Middleware, error) {
+	middlewares := make([]middleware.Middleware, 0, len(mwConfigs))
+
+	for _, mwCfg := range mwConfigs {
+		mw, err := mwCfg.Build()
+		if err != nil {
+			return nil, fmt.Errorf("failed to build middleware %s: %w", mwCfg.Type, err)
+		}
+
+		middlewares = append(middlewares, mw)
+	}
+
+	return middlewares, nil
 }

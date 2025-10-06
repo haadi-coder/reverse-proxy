@@ -7,12 +7,14 @@ import (
 	"net/url"
 
 	"github.com/haadi-coder/reverse-proxy/internal/lib/logger"
+	"github.com/haadi-coder/reverse-proxy/internal/middleware"
 )
 
 type Proxy struct {
-	cfg    *Config
-	server *http.Server
-	router *Router
+	cfg          *Config
+	server       *http.Server
+	router       *Router
+	gmiddlewares []middleware.Middleware
 }
 
 func New(cfg *Config) *Proxy {
@@ -29,6 +31,7 @@ func New(cfg *Config) *Proxy {
 			exact:     make(map[string]*Route),
 			wildcards: make(map[string]*Route),
 		},
+		gmiddlewares: make([]middleware.Middleware, 0),
 	}
 
 	proxy.server.Handler = proxy
@@ -37,8 +40,6 @@ func New(cfg *Config) *Proxy {
 }
 
 func (p *Proxy) Run(ctx context.Context) error {
-	slog.Info("Server started", slog.String("Address", p.server.Addr))
-
 	errChan := make(chan error, 1)
 	go func() {
 		if err := p.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -63,6 +64,11 @@ func (p *Proxy) Route(host string, backend string, opts ...RouteOption) {
 	}
 
 	route := NewRoute(backendURL, opts...)
-
 	p.router.Add(host, route)
+
+	slog.Info("route registered", slog.String("host", host), slog.String("backend", backend))
+}
+
+func (p *Proxy) Use(middlewares ...middleware.Middleware) {
+	p.gmiddlewares = append(p.gmiddlewares, middlewares...)
 }
