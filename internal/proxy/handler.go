@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"path"
 	"time"
@@ -24,6 +25,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	startTime := time.Now()
+
 	backendURL := *route.Backend
 	backendURL.Path = path.Join(backendURL.Path, r.URL.Path)
 	backendURL.RawQuery = r.URL.RawQuery
@@ -39,6 +42,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			backendReq.Header.Add(k, v)
 		}
 	}
+
+	addForwardedHeaders(backendReq, r)
 
 	if route.PreserveHost {
 		backendReq.Host = r.Host
@@ -72,15 +77,20 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 
-	startTime := time.Now()
+	loggingResponseWriter := &AccessLogResponseWriter{ResponseWriter: w, contentLength: 0, statusCode: http.StatusOK}
+
 	if p.cfg.AccessLog != nil {
-		logAccess(p.cfg.AccessLog.Format, *r, &startTime)
+		defer logAccess(*r, *loggingResponseWriter, p.cfg.AccessLog.Format, &startTime)
 	}
 
-	allMiddlewares := append(p.gmiddlewares, route.Middlewares...)
-	handler := applyMiddlewares(baseHandler, allMiddlewares)
+	maxBodyMiddleware := middleware.MaxRequestBody(p.cfg.Server.MaxRequestBody)
 
-	handler.ServeHTTP(w, r)
+	globalMiddlewares := append(p.gmiddlewares, maxBodyMiddleware, middleware.Recovery())
+
+	allMiddlewares := append(globalMiddlewares, route.Middlewares...)
+
+	handler := applyMiddlewares(baseHandler, allMiddlewares)
+	handler.ServeHTTP(loggingResponseWriter, r)
 }
 
 func applyMiddlewares(h http.Handler, middlewares []middleware.Middleware) http.Handler {
@@ -89,4 +99,26 @@ func applyMiddlewares(h http.Handler, middlewares []middleware.Middleware) http.
 	}
 
 	return h
+}
+
+func addForwardedHeaders(backendReq *http.Request, originalReq *http.Request) {
+	clientIP := getClientIP(originalReq)
+
+	forwarded := backendReq.Header.Get("X-Forwarded-For")
+	if forwarded != "" {
+		clientIP = fmt.Sprintf("%s,%s", forwarded, clientIP)
+	}
+
+	backendReq.Header.Set("X-Forwarded-For", clientIP)
+	backendReq.Header.Set("X-Forwarded-Host", originalReq.Host)
+	backendReq.Header.Set("X-Forwarded-Proto", "http")
+}
+
+func getClientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+
+	return host
 }

@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -41,41 +42,67 @@ func (h *AccessLogJSONHandler) WithGroup(name string) slog.Handler {
 	return h
 }
 
-func logAccess(format string, r http.Request, startTime *time.Time) {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
+type AccessLogResponseWriter struct {
+	http.ResponseWriter
+	contentLength int
+	statusCode    int
+}
+
+func (rw *AccessLogResponseWriter) Write(data []byte) (int, error) {
+	n, err := rw.ResponseWriter.Write(data)
+	rw.contentLength += n
+
+	return n, err
+}
+
+func (rw *AccessLogResponseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+func logAccess(req http.Request, resp AccessLogResponseWriter, format string, startTime *time.Time) {
+	host, _, err := net.SplitHostPort(req.RemoteAddr)
 	if err != nil {
-		host = r.RemoteAddr
+		host = req.RemoteAddr
 	}
 
 	if format == "json" {
 		logger := slog.New(&AccessLogJSONHandler{w: os.Stdout})
 		logger.Info("",
 			slog.String("time", startTime.Format(time.RFC3339)),
-			slog.String("method", r.Method),
-			slog.String("path", r.RequestURI),
-			slog.String("status", "200"),
-			slog.String("path", r.RequestURI),
-			slog.String("protocol", r.Proto),
-			slog.String("size", "1234"),
+			slog.String("method", req.Method),
+			slog.String("path", req.RequestURI),
+			slog.Int("status", resp.statusCode),
+			slog.String("path", req.RequestURI),
+			slog.String("protocol", req.Proto),
+			slog.Int64("size", int64(resp.contentLength)),
 			slog.String("ip", host),
 		)
 		return
 	}
 
-	username, _, ok := r.BasicAuth()
+	username, _, ok := req.BasicAuth()
 	if !ok {
 		username = "-"
 	}
 
-	logLine := []string{host, username, startTime.Format("[02/Jan/2006:15:04:05 -0700]"), r.Method, r.RequestURI, r.Proto, "200", "123"}
+	logLine := []string{
+		host,
+		username,
+		startTime.Format("[02/Jan/2006:15:04:05 -0700]"),
+		req.Method, req.RequestURI,
+		req.Proto,
+		strconv.Itoa(resp.statusCode),
+		strconv.Itoa(int(resp.contentLength)),
+	}
 
 	if format == "combined" {
-		referer := r.Referer()
+		referer := req.Referer()
 		if referer == "" {
 			referer = "-"
 		}
 
-		userAgent := r.UserAgent()
+		userAgent := req.UserAgent()
 		if userAgent == "" {
 			userAgent = "-"
 		}

@@ -28,7 +28,6 @@ func BasicAuth(cfg *BasicAuthConfig) Middleware {
 			rawCredentials := auth[len(schema)+1:]
 
 			credentials, err := base64.StdEncoding.DecodeString(rawCredentials)
-			fmt.Println(string(credentials))
 			if err != nil {
 				authenticate(w, cfg.Realm)
 				return

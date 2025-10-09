@@ -198,6 +198,8 @@ func (c *MiddlewareConfig) Build() (Middleware, error) {
 		return RequestID(&c.RequestIDConfig), nil
 	case TypeSecurityHeaders:
 		return SecurityHeaders(&c.SecurityHeadersConfig), nil
+	case TypeCompress:
+		return Compress(&c.CompressConfig), nil
 	default:
 		return nil, fmt.Errorf("unknow middleware type: %s", c.Type)
 	}
