@@ -12,8 +12,8 @@ import (
 	"github.com/haadi-coder/filesize"
 	"github.com/haadi-coder/reverse-proxy/internal/config"
 	"github.com/haadi-coder/reverse-proxy/internal/lib/logger"
-	"github.com/haadi-coder/reverse-proxy/internal/middleware"
-	"github.com/haadi-coder/reverse-proxy/internal/proxy"
+	"github.com/haadi-coder/reverse-proxy/pkg/middleware"
+	"github.com/haadi-coder/reverse-proxy/pkg/proxy"
 )
 
 const revision = "unknown"

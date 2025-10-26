@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/haadi-coder/reverse-proxy/internal/lib/logger"
-	"github.com/haadi-coder/reverse-proxy/internal/middleware"
+	"github.com/haadi-coder/reverse-proxy/pkg/middleware"
 )
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -19,7 +19,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	route, ok := p.router.Lookup(r.Host)
+	route, ok := p.router.lookup(r.Host)
 	if !ok {
 		http.Error(w, "No route found for host", http.StatusNotFound)
 		return
@@ -27,7 +27,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	startTime := time.Now()
 
-	backendURL := *route.Backend
+	backendURL := *route.backend
 	backendURL.Path = path.Join(backendURL.Path, r.URL.Path)
 	backendURL.RawQuery = r.URL.RawQuery
 
@@ -45,14 +45,14 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	addForwardedHeaders(backendReq, r)
 
-	if route.PreserveHost {
+	if route.preserveHost {
 		backendReq.Host = r.Host
 	} else {
-		backendReq.Host = route.Backend.Host
+		backendReq.Host = route.backend.Host
 	}
 
 	baseHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		client := &http.Client{Transport: route.Transport}
+		client := &http.Client{Transport: route.transport}
 		resp, err := client.Do(backendReq)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to do request: %s", err.Error()), http.StatusBadGateway)
@@ -87,7 +87,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	globalMiddlewares := append(p.gmiddlewares, maxBodyMiddleware, middleware.Recovery())
 
-	allMiddlewares := append(globalMiddlewares, route.Middlewares...)
+	allMiddlewares := append(globalMiddlewares, route.middlewares...)
 
 	handler := applyMiddlewares(baseHandler, allMiddlewares)
 	handler.ServeHTTP(loggingResponseWriter, r)

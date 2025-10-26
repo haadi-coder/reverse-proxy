@@ -3,7 +3,7 @@ package proxy
 import (
 	"time"
 
-	"github.com/haadi-coder/reverse-proxy/internal/middleware"
+	"github.com/haadi-coder/reverse-proxy/pkg/middleware"
 )
 
 type Config struct {
@@ -32,7 +32,6 @@ type LogConfig struct {
 type AccessLogConfig struct {
 	Format string
 }
-
 
 type RouteConfig struct {
 	Backend               string

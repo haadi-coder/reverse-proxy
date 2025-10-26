@@ -11,7 +11,7 @@ type Router struct {
 	mu        sync.RWMutex
 }
 
-func (r *Router) Add(host string, route *Route) {
+func (r *Router) add(host string, route *Route) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -24,7 +24,7 @@ func (r *Router) Add(host string, route *Route) {
 	}
 }
 
-func (r *Router) Remove(host string) {
+func (r *Router) remove(host string) {
 	prepared := prepareHost(host)
 
 	r.mu.Lock()
@@ -37,7 +37,7 @@ func (r *Router) Remove(host string) {
 	}
 }
 
-func (r *Router) Lookup(host string) (*Route, bool) {
+func (r *Router) lookup(host string) (*Route, bool) {
 	prepared := prepareHost(host)
 
 	r.mu.RLock()

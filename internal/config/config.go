@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/haadi-coder/reverse-proxy/internal/middleware"
+	"github.com/haadi-coder/reverse-proxy/pkg/middleware"
 	"github.com/ilyakaznacheev/cleanenv"
 )
 

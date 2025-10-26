@@ -6,60 +6,60 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/haadi-coder/reverse-proxy/internal/middleware"
+	"github.com/haadi-coder/reverse-proxy/pkg/middleware"
 )
 
 type Route struct {
-	Backend      *url.URL
-	Transport    *http.Transport
-	PreserveHost bool
-	Middlewares  []middleware.Middleware
+	backend      *url.URL
+	transport    *http.Transport
+	preserveHost bool
+	middlewares  []middleware.Middleware
 }
 
 type RouteOption func(r *Route)
 
 func WithPreserveHost(preserve bool) RouteOption {
 	return func(r *Route) {
-		r.PreserveHost = preserve
+		r.preserveHost = preserve
 	}
 }
 
 func WithIdleConnTimeout(timeout time.Duration) RouteOption {
 	return func(r *Route) {
-		r.Transport.IdleConnTimeout = timeout
+		r.transport.IdleConnTimeout = timeout
 	}
 }
 
 func WithResponseHeaderTimeout(timeout time.Duration) RouteOption {
 	return func(r *Route) {
-		r.Transport.ResponseHeaderTimeout = timeout
+		r.transport.ResponseHeaderTimeout = timeout
 	}
 }
 
 func WithMaxIdleConns(max int) RouteOption {
 	return func(r *Route) {
-		r.Transport.MaxIdleConns = max
+		r.transport.MaxIdleConns = max
 	}
 }
 
 func WithDialTimeout(timeout time.Duration) RouteOption {
 	return func(r *Route) {
-		r.Transport.DialContext = (&net.Dialer{Timeout: timeout}).DialContext
+		r.transport.DialContext = (&net.Dialer{Timeout: timeout}).DialContext
 	}
 }
 
 func WithMiddlewares(middlewares ...middleware.Middleware) RouteOption {
 	return func(r *Route) {
-		r.Middlewares = append(r.Middlewares, middlewares...)
+		r.middlewares = append(r.middlewares, middlewares...)
 	}
 }
 
 func NewRoute(backend *url.URL, opts ...RouteOption) *Route {
 	route := &Route{
-		Backend:      backend,
-		PreserveHost: true,
-		Middlewares:  []middleware.Middleware{},
-		Transport: &http.Transport{
+		backend:      backend,
+		preserveHost: true,
+		middlewares:  []middleware.Middleware{},
+		transport: &http.Transport{
 			ResponseHeaderTimeout: 30 * time.Second,
 			IdleConnTimeout:       90 * time.Second,
 			MaxIdleConns:          100,

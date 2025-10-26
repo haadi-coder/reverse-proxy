@@ -7,7 +7,7 @@ import (
 	"net/url"
 
 	"github.com/haadi-coder/reverse-proxy/internal/lib/logger"
-	"github.com/haadi-coder/reverse-proxy/internal/middleware"
+	"github.com/haadi-coder/reverse-proxy/pkg/middleware"
 )
 
 type Proxy struct {
@@ -64,7 +64,7 @@ func (p *Proxy) Route(host string, backend string, opts ...RouteOption) {
 	}
 
 	route := NewRoute(backendURL, opts...)
-	p.router.Add(host, route)
+	p.router.add(host, route)
 
 	slog.Info("route registered", slog.String("host", host), slog.String("backend", backend))
 }
