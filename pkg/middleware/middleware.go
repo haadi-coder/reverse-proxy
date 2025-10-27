@@ -4,16 +4,16 @@ import (
 	"net/http"
 )
 
-type MiddlewareType string
+type Type string
 
 const (
-	TypeRateLimit       MiddlewareType = "rate_limit"
-	TypeBasicAuth       MiddlewareType = "basic_auth"
-	TypeCORS            MiddlewareType = "cors"
-	TypeHeaders         MiddlewareType = "headers"
-	TypeCompress        MiddlewareType = "compress"
-	TypeRequestID       MiddlewareType = "request_id"
-	TypeSecurityHeaders MiddlewareType = "security_headers"
+	TypeRateLimit       Type = "rate_limit"
+	TypeBasicAuth       Type = "basic_auth"
+	TypeCORS            Type = "cors"
+	TypeHeaders         Type = "headers"
+	TypeCompress        Type = "compress"
+	TypeRequestID       Type = "request_id"
+	TypeSecurityHeaders Type = "security_headers"
 )
 
 type Middleware func(http.Handler) http.Handler

@@ -2,6 +2,14 @@ package middleware
 
 import "net/http"
 
+type SecurityHeadersConfig struct {
+	ContentTypeOptions string
+	FrameOptions       string
+	XSSProtection      string
+	ReferrerPolicy     string
+	PermissionsPolicy  string
+}
+
 func SecurityHeaders(cfg *SecurityHeadersConfig) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -8,17 +8,18 @@ import (
 
 	"github.com/haadi-coder/reverse-proxy/internal/lib/logger"
 	"github.com/haadi-coder/reverse-proxy/pkg/middleware"
+	proxyCfg "github.com/haadi-coder/reverse-proxy/pkg/proxy/config"
 )
 
 type Proxy struct {
-	cfg          *Config
-	server       *http.Server
-	router       *Router
-	gmiddlewares []middleware.Middleware
+	cfg         *proxyCfg.Config
+	server      *http.Server
+	router      *Router
+	middlewares []middleware.Middleware
 }
 
-func New(cfg *Config) *Proxy {
-	proxy := &Proxy{
+func New(cfg *proxyCfg.Config) *Proxy {
+	p := &Proxy{
 		cfg: cfg,
 		server: &http.Server{
 			Addr:           cfg.Server.Listen,
@@ -28,15 +29,30 @@ func New(cfg *Config) *Proxy {
 			MaxHeaderBytes: int(cfg.Server.MaxHeaderBytes),
 		},
 		router: &Router{
-			exact:     make(map[string]*Route),
-			wildcards: make(map[string]*Route),
+			exact:     make(map[string]*route),
+			wildcards: make(map[string]*route),
 		},
-		gmiddlewares: make([]middleware.Middleware, 0),
+		middlewares: make([]middleware.Middleware, 0),
 	}
 
-	proxy.server.Handler = proxy
+	p.server.Handler = http.HandlerFunc(p.serveHTTP)
 
-	return proxy
+	return p
+}
+
+func (p *Proxy) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Host == "" {
+		http.Error(w, "Missing Host header", http.StatusBadRequest)
+		return
+	}
+
+	route, ok := p.router.lookup(r.Host)
+	if !ok {
+		http.Error(w, "No route found for host", http.StatusNotFound)
+		return
+	}
+
+	route.handle(w, r, p.cfg, p.middlewares)
 }
 
 func (p *Proxy) Run(ctx context.Context) error {
@@ -63,12 +79,12 @@ func (p *Proxy) Route(host string, backend string, opts ...RouteOption) {
 		slog.Error("failed to parse backend url", logger.Error(err))
 	}
 
-	route := NewRoute(backendURL, opts...)
+	route := newRoute(backendURL, opts...)
 	p.router.add(host, route)
 
 	slog.Info("route registered", slog.String("host", host), slog.String("backend", backend))
 }
 
 func (p *Proxy) Use(middlewares ...middleware.Middleware) {
-	p.gmiddlewares = append(p.gmiddlewares, middlewares...)
+	p.middlewares = append(p.middlewares, middlewares...)
 }

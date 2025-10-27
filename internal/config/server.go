@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -35,24 +34,4 @@ func (c *ServerConfig) applyDefaults() {
 	if c.ShutdownTimeout == 0 {
 		c.ShutdownTimeout = 30 * time.Second
 	}
-}
-
-func (c *ServerConfig) validate() error {
-	if c.Listen == "" {
-		return fmt.Errorf("listen is required")
-	}
-	if c.ReadTimeout < 0 {
-		return fmt.Errorf("read_timeout can't be negative")
-	}
-	if c.WriteTimeout < 0 {
-		return fmt.Errorf("write_timeout can't be negative")
-	}
-	if c.IdleTimeout < 0 {
-		return fmt.Errorf("idle_timeout can't be negative")
-	}
-	if c.ShutdownTimeout < 0 {
-		return fmt.Errorf("shutdown_timeout can't be negative")
-	}
-
-	return nil
 }

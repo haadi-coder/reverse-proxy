@@ -6,12 +6,12 @@ import (
 )
 
 type Router struct {
-	exact     map[string]*Route
-	wildcards map[string]*Route
+	exact     map[string]*route
+	wildcards map[string]*route
 	mu        sync.RWMutex
 }
 
-func (r *Router) add(host string, route *Route) {
+func (r *Router) add(host string, route *route) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -37,7 +37,7 @@ func (r *Router) remove(host string) {
 	}
 }
 
-func (r *Router) lookup(host string) (*Route, bool) {
+func (r *Router) lookup(host string) (*route, bool) {
 	prepared := prepareHost(host)
 
 	r.mu.RLock()

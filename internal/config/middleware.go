@@ -1,14 +1,16 @@
-package middleware
+package config
 
 import (
 	"fmt"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/haadi-coder/reverse-proxy/pkg/middleware"
 )
 
 type MiddlewareConfig struct {
-	Type                  MiddlewareType `yaml:"type"`
+	Type                  middleware.Type `yaml:"type"`
 	RatelimitConfig       `yaml:",inline"`
 	BasicAuthConfig       `yaml:",inline"`
 	CORSConfig            `yaml:",inline"`
@@ -68,12 +70,12 @@ type SecurityHeadersConfig struct {
 
 func (c *MiddlewareConfig) ApplyDefaults() {
 	switch c.Type {
-	case TypeBasicAuth:
+	case middleware.TypeBasicAuth:
 		if c.Realm == "" {
 			c.Realm = "Restricted"
 		}
 
-	case TypeCORS:
+	case middleware.TypeCORS:
 		if len(c.AllowedMethods) == 0 {
 			c.AllowedMethods = []string{"GET", "POST"}
 		}
@@ -81,7 +83,7 @@ func (c *MiddlewareConfig) ApplyDefaults() {
 			c.MaxAge = 24 * time.Hour
 		}
 
-	case TypeCompress:
+	case middleware.TypeCompress:
 		if c.MinSize == 0 {
 			c.MinSize = 1024
 		}
@@ -102,12 +104,12 @@ func (c *MiddlewareConfig) ApplyDefaults() {
 			}
 		}
 
-	case TypeRequestID:
+	case middleware.TypeRequestID:
 		if c.HeaderName == "" {
 			c.HeaderName = "X-Request-ID"
 		}
 
-	case TypeSecurityHeaders:
+	case middleware.TypeSecurityHeaders:
 		if c.ContentTypeOptions == "" {
 			c.ContentTypeOptions = "nosniff"
 		}
@@ -124,11 +126,11 @@ func (c *MiddlewareConfig) ApplyDefaults() {
 }
 
 func (c *MiddlewareConfig) Validate() error {
-	types := []MiddlewareType{
-		TypeBasicAuth, TypeCORS,
-		TypeCompress, TypeHeaders,
-		TypeRateLimit, TypeRequestID,
-		TypeSecurityHeaders,
+	types := []middleware.Type{
+		middleware.TypeBasicAuth, middleware.TypeCORS,
+		middleware.TypeCompress, middleware.TypeHeaders,
+		middleware.TypeRateLimit, middleware.TypeRequestID,
+		middleware.TypeSecurityHeaders,
 	}
 
 	if !slices.Contains(types, c.Type) {
@@ -136,7 +138,7 @@ func (c *MiddlewareConfig) Validate() error {
 	}
 
 	switch c.Type {
-	case TypeRateLimit:
+	case middleware.TypeRateLimit:
 		if c.Requests <= 0 {
 			return fmt.Errorf("rate_limit requests must be greater then 0")
 		}
@@ -147,7 +149,7 @@ func (c *MiddlewareConfig) Validate() error {
 			return fmt.Errorf("rate_limit burst can't be negative")
 		}
 
-	case TypeBasicAuth:
+	case middleware.TypeBasicAuth:
 		if len(c.Users) == 0 {
 			return fmt.Errorf("basic_auth users is required")
 		}
@@ -158,7 +160,7 @@ func (c *MiddlewareConfig) Validate() error {
 			}
 		}
 
-	case TypeCORS:
+	case middleware.TypeCORS:
 		if len(c.AllowedOrigins) == 0 {
 			return fmt.Errorf("cors allowed_origins is required")
 		}
@@ -166,7 +168,7 @@ func (c *MiddlewareConfig) Validate() error {
 			return fmt.Errorf("cors max_age can't be negative")
 		}
 
-	case TypeCompress:
+	case middleware.TypeCompress:
 		if c.MinSize < 0 {
 			return fmt.Errorf("compress min_size can't be negative")
 		}
@@ -184,22 +186,66 @@ func isBcryptHash(hash string) bool {
 		strings.HasPrefix(hash, "$2y")
 }
 
-func (c *MiddlewareConfig) Build() (Middleware, error) {
+func (c *MiddlewareConfig) Build() (middleware.Middleware, error) {
 	switch c.Type {
-	case TypeRateLimit:
-		return RateLimit(&c.RatelimitConfig), nil
-	case TypeBasicAuth:
-		return BasicAuth(&c.BasicAuthConfig), nil
-	case TypeCORS:
-		return CORS(&c.CORSConfig), nil
-	case TypeHeaders:
-		return Headers(&c.HeadersConfig), nil
-	case TypeRequestID:
-		return RequestID(&c.RequestIDConfig), nil
-	case TypeSecurityHeaders:
-		return SecurityHeaders(&c.SecurityHeadersConfig), nil
-	case TypeCompress:
-		return Compress(&c.CompressConfig), nil
+	case middleware.TypeRateLimit:
+		return middleware.RateLimit(&middleware.RatelimitConfig{
+			Requests: c.Requests,
+			Window:   c.Window,
+			Burst:    c.Burst,
+		}), nil
+
+	case middleware.TypeBasicAuth:
+		return middleware.BasicAuth(&middleware.BasicAuthConfig{
+			Users: c.Users,
+			Realm: c.Realm,
+		}), nil
+
+	case middleware.TypeCORS:
+		return middleware.CORS(&middleware.CORSConfig{
+			AllowedOrigins:   c.AllowedOrigins,
+			AllowedMethods:   c.AllowedMethods,
+			AllowedHeaders:   c.AllowedHeaders,
+			ExposedHeaders:   c.ExposedHeaders,
+			AllowCredentials: c.AllowCredentials,
+			MaxAge:           c.MaxAge,
+		}), nil
+
+	case middleware.TypeHeaders:
+		return middleware.Headers(&middleware.HeadersConfig{
+			Request: &middleware.HeaderRules{
+				Add:    c.Request.Add,
+				Set:    c.Request.Set,
+				Remove: c.Request.Remove,
+			},
+			Response: &middleware.HeaderRules{
+				Add:    c.Response.Add,
+				Set:    c.Response.Set,
+				Remove: c.Response.Remove,
+			},
+		}), nil
+
+	case middleware.TypeRequestID:
+		return middleware.RequestID(&middleware.RequestIDConfig{
+			HeaderName: c.HeaderName,
+		}), nil
+
+	case middleware.TypeSecurityHeaders:
+		return middleware.SecurityHeaders(&middleware.SecurityHeadersConfig{
+			ContentTypeOptions: c.ContentTypeOptions,
+			FrameOptions:       c.FrameOptions,
+			XSSProtection:      c.XSSProtection,
+			ReferrerPolicy:     c.ReferrerPolicy,
+			PermissionsPolicy:  c.PermissionsPolicy,
+		}), nil
+
+	case middleware.TypeCompress:
+		return middleware.Compress(&middleware.CompressConfig{
+			MinSize: c.MinSize,
+			Level:   c.Level,
+			Types:   c.Types,
+		}), nil
+
 	default:
 		return nil, fmt.Errorf("unknow middleware type: %s", c.Type)
 	}

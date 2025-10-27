@@ -14,24 +14,20 @@ import (
 	"github.com/haadi-coder/reverse-proxy/internal/lib/logger"
 	"github.com/haadi-coder/reverse-proxy/pkg/middleware"
 	"github.com/haadi-coder/reverse-proxy/pkg/proxy"
+	proxyCfg "github.com/haadi-coder/reverse-proxy/pkg/proxy/config"
 )
 
 const revision = "unknown"
 
 func main() {
-	var version bool
-	flag.BoolVar(&version, "version", false, "Print appplication version (long)")
-	flag.BoolVar(&version, "v", false, "Print application version (short)")
+	flags := parseFlags()
 
-	flag.Parse()
-
-	if version {
+	if flags.version {
 		fmt.Printf("Reverse Proxy: %s\n", revision)
 		os.Exit(0)
 	}
 
-	arg := flag.Arg(0)
-	yamlCfg, err := config.Load(arg)
+	yamlCfg, err := config.Load(flags.configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to load yaml config: %v\n", err)
 		os.Exit(1)
@@ -45,10 +41,32 @@ func main() {
 	}
 }
 
+type flags struct {
+	version    bool
+	configPath string
+}
+
+func parseFlags() flags {
+	var f flags
+
+	flag.BoolVar(&f.version, "version", false, "Print appplication version (long)")
+	flag.BoolVar(&f.version, "v", false, "Print application version (short)")
+
+	flag.Parse()
+
+	f.configPath = flag.Arg(0)
+
+	return f
+}
+
 func run(yamlCfg *config.Config) error {
-	cfg, err := MapConfig(yamlCfg)
+	cfg, err := mapConfig(yamlCfg)
 	if err != nil {
 		return fmt.Errorf("failed to map yaml config to proxy one: %w", err)
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("failed to validate proxy config: %w", err)
 	}
 
 	slog.Info("starting proxy", slog.String("addr", cfg.Server.Listen))
@@ -62,7 +80,7 @@ func run(yamlCfg *config.Config) error {
 
 	p.Use(gMiddlewares...)
 
-	for host, route := range cfg.Routes {
+	for host, route := range yamlCfg.Routes {
 		middlewares, err := buildMiddlewares(route.Middlewares)
 		if err != nil {
 			return fmt.Errorf("failed to build route %s middlewares: %w", host, err)
@@ -90,7 +108,7 @@ func run(yamlCfg *config.Config) error {
 	return nil
 }
 
-func MapConfig(cliCfg *config.Config) (*proxy.Config, error) {
+func mapConfig(cliCfg *config.Config) (*proxyCfg.Config, error) {
 	headersBytes, err := filesize.Parse(cliCfg.Server.MaxHeaderBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse max_header_bytes: %w", err)
@@ -101,8 +119,8 @@ func MapConfig(cliCfg *config.Config) (*proxy.Config, error) {
 		return nil, fmt.Errorf("failed to parse max_request_body: %w", err)
 	}
 
-	proxyCfg := &proxy.Config{
-		Server: proxy.ServerConfig{
+	cfg := &proxyCfg.Config{
+		Server: &proxyCfg.ServerConfig{
 			Listen:          cliCfg.Server.Listen,
 			ReadTimeout:     cliCfg.Server.ReadTimeout,
 			WriteTimeout:    cliCfg.Server.WriteTimeout,
@@ -111,34 +129,19 @@ func MapConfig(cliCfg *config.Config) (*proxy.Config, error) {
 			MaxHeaderBytes:  headersBytes,
 			MaxRequestBody:  requestBodyBytes,
 		},
-		Log: proxy.LogConfig{
-			Level:  string(cliCfg.Log.Level),
-			Format: string(cliCfg.Log.Format),
+		Log: &proxyCfg.LogConfig{
+			Level:  cliCfg.Log.Level,
+			Format: cliCfg.Log.Format,
 		},
-		Routes: make(map[string]*proxy.RouteConfig),
 	}
 
 	if cliCfg.AccessLog != nil {
-		proxyCfg.AccessLog = &proxy.AccessLogConfig{
-			Format: string(cliCfg.AccessLog.Format),
+		cfg.AccessLog = &proxyCfg.AccessLogConfig{
+			Format: cliCfg.AccessLog.Format,
 		}
 	}
 
-	for host, cliRoute := range cliCfg.Routes {
-		route := &proxy.RouteConfig{
-			Backend:               cliRoute.Backend,
-			PreserveHost:          cliRoute.PreserveHost,
-			DialTimeout:           cliRoute.DialTimeout,
-			ResponseHeaderTimeout: cliRoute.ResponseHeaderTimeout,
-			IdleConnTimeout:       cliRoute.IdleConnTimeout,
-			MaxIdleConns:          cliRoute.MaxIdleConns,
-			Middlewares:           cliRoute.Middlewares,
-		}
-
-		proxyCfg.Routes[host] = route
-	}
-
-	return proxyCfg, nil
+	return cfg, nil
 }
 
 func setupLogger(cfg *config.Config) {
@@ -164,7 +167,7 @@ func setupLogger(cfg *config.Config) {
 	slog.SetDefault(slog.New(handler))
 }
 
-func buildMiddlewares(mwConfigs []middleware.MiddlewareConfig) ([]middleware.Middleware, error) {
+func buildMiddlewares(mwConfigs []config.MiddlewareConfig) ([]middleware.Middleware, error) {
 	middlewares := make([]middleware.Middleware, 0, len(mwConfigs))
 
 	for _, mwCfg := range mwConfigs {

@@ -2,6 +2,16 @@ package middleware
 
 import "net/http"
 
+type HeadersConfig struct {
+	Request  *HeaderRules
+	Response *HeaderRules
+}
+type HeaderRules struct {
+	Add    map[string]string
+	Set    map[string]string
+	Remove []string
+}
+
 func Headers(cfg *HeadersConfig) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

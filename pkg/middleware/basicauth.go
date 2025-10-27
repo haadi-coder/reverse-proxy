@@ -9,6 +9,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type BasicAuthConfig struct {
+	Users map[string]string
+	Realm string
+}
+
 func BasicAuth(cfg *BasicAuthConfig) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

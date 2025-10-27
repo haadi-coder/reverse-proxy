@@ -1,22 +1,11 @@
 package config
 
 import (
-	"fmt"
-	"slices"
-)
-
-// TODO: Валидацию перенести на уровень proxy
-
-type AccessLogFormat string
-
-const (
-	AccessLogCommon   AccessLogFormat = "common"
-	AccessLogJSON     AccessLogFormat = "json"
-	AccessLogCombined AccessLogFormat = "combined"
+	"github.com/haadi-coder/reverse-proxy/pkg/accesslog"
 )
 
 type AccessLogConfig struct {
-	Format AccessLogFormat `yaml:"format,omitempty"`
+	Format accesslog.AccessLogFormat `yaml:"format,omitempty"`
 }
 
 func (c *AccessLogConfig) applyDefaults() {
@@ -25,19 +14,4 @@ func (c *AccessLogConfig) applyDefaults() {
 			c.Format = "common"
 		}
 	}
-}
-
-func (c *AccessLogConfig) validate() error {
-	if c != nil {
-		if !isValidAccessLogFormat(c.Format) {
-			return fmt.Errorf("invalid format: %s (must be common, json or combined)", c.Format)
-		}
-	}
-
-	return nil
-}
-
-func isValidAccessLogFormat(format AccessLogFormat) bool {
-	formats := []AccessLogFormat{AccessLogCommon, AccessLogJSON, AccessLogCombined}
-	return slices.Contains(formats, format)
 }

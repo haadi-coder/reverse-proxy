@@ -8,11 +8,11 @@ import (
 )
 
 type Config struct {
-	Server      *ServerConfig                 `yaml:"server"`
-	Log         *LogConfig                    `yaml:"log"`
-	AccessLog   *AccessLogConfig              `yaml:"access_log,omitempty"`
-	Routes      map[string]*RouteConfig       `yaml:"routes"`
-	Middlewares []middleware.MiddlewareConfig `yaml:"middlewares,omitempty"`
+	Server      *ServerConfig           `yaml:"server"`
+	Log         *LogConfig              `yaml:"log"`
+	AccessLog   *AccessLogConfig        `yaml:"access_log,omitempty"`
+	Routes      map[string]*RouteConfig `yaml:"routes"`
+	Middlewares []MiddlewareConfig      `yaml:"middlewares,omitempty"`
 }
 
 func Load(path string) (*Config, error) {
@@ -56,18 +56,6 @@ func (c *Config) applyDefaults() {
 }
 
 func (c *Config) validate() error {
-	if err := c.Server.validate(); err != nil {
-		return fmt.Errorf("failed to validate server config: %w", err)
-	}
-
-	if err := c.Log.validate(); err != nil {
-		return fmt.Errorf("failed to validate log config: %w", err)
-	}
-
-	if err := c.AccessLog.validate(); err != nil {
-		return fmt.Errorf("failed to validate access_log config: %w", err)
-	}
-
 	if len(c.Routes) == 0 {
 		return fmt.Errorf("failed to validate routes. There must be at least one route")
 	}
@@ -78,7 +66,14 @@ func (c *Config) validate() error {
 		}
 	}
 
+	mwTypes := make(map[middleware.Type]bool)
 	for _, mw := range c.Middlewares {
+		if mwTypes[mw.Type] {
+			return fmt.Errorf("duplicate middleware: %s", mw.Type)
+		}
+
+		mwTypes[mw.Type] = true
+
 		if err := mw.Validate(); err != nil {
 			return fmt.Errorf("failed to validate middleware %s: %w", mw.Type, err)
 		}

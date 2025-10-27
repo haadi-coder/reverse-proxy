@@ -9,13 +9,13 @@ import (
 )
 
 type RouteConfig struct {
-	Backend               string                        `yaml:"backend"`
-	PreserveHost          bool                          `yaml:"preserve_host"`
-	DialTimeout           time.Duration                 `yaml:"dial_timeout"`
-	ResponseHeaderTimeout time.Duration                 `yaml:"response_header_timeout"`
-	IdleConnTimeout       time.Duration                 `yaml:"idle_conn_timeout"`
-	MaxIdleConns          int                           `yaml:"max_idle_conns"`
-	Middlewares           []middleware.MiddlewareConfig `yaml:"middlewares"`
+	Backend               string             `yaml:"backend"`
+	PreserveHost          bool               `yaml:"preserve_host"`
+	DialTimeout           time.Duration      `yaml:"dial_timeout"`
+	ResponseHeaderTimeout time.Duration      `yaml:"response_header_timeout"`
+	IdleConnTimeout       time.Duration      `yaml:"idle_conn_timeout"`
+	MaxIdleConns          int                `yaml:"max_idle_conns"`
+	Middlewares           []MiddlewareConfig `yaml:"middlewares"`
 }
 
 func (c *RouteConfig) applyDefaults() {
@@ -61,7 +61,14 @@ func (c *RouteConfig) validate() error {
 		return fmt.Errorf("max_idle_conns can't be negative")
 	}
 
+	mwTypes := make(map[middleware.Type]bool)
 	for _, mw := range c.Middlewares {
+		if mwTypes[mw.Type] {
+			return fmt.Errorf("duplicate middleware: %s", mw.Type)
+		}
+
+		mwTypes[mw.Type] = true
+
 		if err := mw.Validate(); err != nil {
 			return fmt.Errorf("failed to validate middleware %s: %w", mw.Type, err)
 		}

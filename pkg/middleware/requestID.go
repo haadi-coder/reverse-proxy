@@ -6,6 +6,10 @@ import (
 	"github.com/haadi-coder/passgen"
 )
 
+type RequestIDConfig struct {
+	HeaderName string
+}
+
 func RequestID(cfg *RequestIDConfig) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
