@@ -16,12 +16,12 @@ type CORSConfig struct {
 	MaxAge           time.Duration
 }
 
-func CORS(cfg *CORSConfig) Middleware {
+func CORS(cfg *CORSConfig) *Middleware {
 	exposedHeaders := strings.Join(cfg.ExposedHeaders, ",")
 	allowedMethods := strings.Join(cfg.AllowedMethods, ",")
 	allowedHeaders := strings.Join(cfg.AllowedHeaders, ",")
 
-	return func(next http.Handler) http.Handler {
+	handler := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
 
@@ -56,5 +56,10 @@ func CORS(cfg *CORSConfig) Middleware {
 
 			next.ServeHTTP(w, r)
 		})
+	}
+
+	return &Middleware{
+		Type:    TypeCORS,
+		Handler: handler,
 	}
 }

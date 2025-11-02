@@ -13,9 +13,9 @@ type RatelimitConfig struct {
 	Burst    int
 }
 
-func RateLimit(cfg *RatelimitConfig) Middleware {
+func RateLimit(cfg *RatelimitConfig) *Middleware {
 	limiter := rate.NewLimiter(rate.Every(cfg.Window/time.Duration(cfg.Requests)), cfg.Burst)
-	return func(next http.Handler) http.Handler {
+	handler := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !limiter.Allow() {
 				http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
@@ -23,5 +23,10 @@ func RateLimit(cfg *RatelimitConfig) Middleware {
 			}
 			next.ServeHTTP(w, r)
 		})
+	}
+
+	return &Middleware{
+		Type:    TypeRateLimit,
+		Handler: handler,
 	}
 }

@@ -167,8 +167,8 @@ func setupLogger(cfg *config.Config) {
 	slog.SetDefault(slog.New(handler))
 }
 
-func buildMiddlewares(mwConfigs []config.MiddlewareConfig) ([]middleware.Middleware, error) {
-	middlewares := make([]middleware.Middleware, 0, len(mwConfigs))
+func buildMiddlewares(mwConfigs []config.MiddlewareConfig) ([]*middleware.Middleware, error) {
+	middlewares := make([]*middleware.Middleware, 0, len(mwConfigs))
 
 	for _, mwCfg := range mwConfigs {
 		mw, err := mwCfg.Build()

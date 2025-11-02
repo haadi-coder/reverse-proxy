@@ -15,7 +15,7 @@ type Proxy struct {
 	cfg         *proxyCfg.Config
 	server      *http.Server
 	router      *Router
-	middlewares []middleware.Middleware
+	middlewares []*middleware.Middleware
 }
 
 func New(cfg *proxyCfg.Config) *Proxy {
@@ -32,7 +32,7 @@ func New(cfg *proxyCfg.Config) *Proxy {
 			exact:     make(map[string]*route),
 			wildcards: make(map[string]*route),
 		},
-		middlewares: make([]middleware.Middleware, 0),
+		middlewares: make([]*middleware.Middleware, 0),
 	}
 
 	p.server.Handler = http.HandlerFunc(p.serveHTTP)
@@ -85,6 +85,6 @@ func (p *Proxy) Route(host string, backend string, opts ...RouteOption) {
 	slog.Info("route registered", slog.String("host", host), slog.String("backend", backend))
 }
 
-func (p *Proxy) Use(middlewares ...middleware.Middleware) {
+func (p *Proxy) Use(middlewares ...*middleware.Middleware) {
 	p.middlewares = append(p.middlewares, middlewares...)
 }

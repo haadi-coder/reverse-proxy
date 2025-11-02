@@ -12,8 +12,8 @@ type HeaderRules struct {
 	Remove []string
 }
 
-func Headers(cfg *HeadersConfig) Middleware {
-	return func(next http.Handler) http.Handler {
+func Headers(cfg *HeadersConfig) *Middleware {
+	handler := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if cfg.Request != nil {
 				applyHeaders(r.Header, cfg.Request)
@@ -25,6 +25,11 @@ func Headers(cfg *HeadersConfig) Middleware {
 
 			next.ServeHTTP(w, r)
 		})
+	}
+
+	return &Middleware{
+		Type:    TypeHeaders,
+		Handler: handler,
 	}
 }
 

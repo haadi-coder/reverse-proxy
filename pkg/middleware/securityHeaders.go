@@ -10,8 +10,8 @@ type SecurityHeadersConfig struct {
 	PermissionsPolicy  string
 }
 
-func SecurityHeaders(cfg *SecurityHeadersConfig) Middleware {
-	return func(next http.Handler) http.Handler {
+func SecurityHeaders(cfg *SecurityHeadersConfig) *Middleware {
+	handler := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if cfg.ContentTypeOptions != "" {
 				w.Header().Set("X-Content-Type-Options", cfg.ContentTypeOptions)
@@ -35,5 +35,10 @@ func SecurityHeaders(cfg *SecurityHeadersConfig) Middleware {
 
 			next.ServeHTTP(w, r)
 		})
+	}
+
+	return &Middleware{
+		Type:    TypeSecurityHeaders,
+		Handler: handler,
 	}
 }

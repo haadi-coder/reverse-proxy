@@ -55,8 +55,8 @@ type CompressConfig struct {
 	Types   []string
 }
 
-func Compress(cfg *CompressConfig) Middleware {
-	return func(next http.Handler) http.Handler {
+func Compress(cfg *CompressConfig) *Middleware {
+	handler := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			acceptEncoding := r.Header.Get("Accept-Encoding")
 			if !strings.Contains(acceptEncoding, "gzip") {
@@ -80,5 +80,10 @@ func Compress(cfg *CompressConfig) Middleware {
 				slog.Error("failed to close gzip writer", slog.Any("error", err))
 			}
 		})
+	}
+
+	return &Middleware{
+		Type:    TypeCompress,
+		Handler: handler,
 	}
 }

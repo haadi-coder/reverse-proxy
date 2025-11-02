@@ -20,7 +20,7 @@ type route struct {
 	backend      *url.URL
 	transport    *http.Transport
 	preserveHost bool
-	middlewares  []middleware.Middleware
+	middlewares  []*middleware.Middleware
 }
 
 type RouteOption func(r *route)
@@ -55,7 +55,7 @@ func WithDialTimeout(timeout time.Duration) RouteOption {
 	}
 }
 
-func WithMiddlewares(middlewares ...middleware.Middleware) RouteOption {
+func WithMiddlewares(middlewares ...*middleware.Middleware) RouteOption {
 	return func(r *route) {
 		r.middlewares = append(r.middlewares, middlewares...)
 	}
@@ -65,7 +65,7 @@ func newRoute(backend *url.URL, opts ...RouteOption) *route {
 	route := &route{
 		backend:      backend,
 		preserveHost: true,
-		middlewares:  []middleware.Middleware{},
+		middlewares:  []*middleware.Middleware{},
 		transport: &http.Transport{
 			ResponseHeaderTimeout: 30 * time.Second,
 			IdleConnTimeout:       90 * time.Second,
@@ -80,7 +80,7 @@ func newRoute(backend *url.URL, opts ...RouteOption) *route {
 	return route
 }
 
-func (rt *route) handle(w http.ResponseWriter, r *http.Request, cfg *proxyCfg.Config, globalMws []middleware.Middleware) {
+func (rt *route) handle(w http.ResponseWriter, r *http.Request, cfg *proxyCfg.Config, globalMws []*middleware.Middleware) {
 	startTime := time.Now()
 
 	backendURL := *rt.backend
@@ -149,7 +149,7 @@ func (rt *route) handle(w http.ResponseWriter, r *http.Request, cfg *proxyCfg.Co
 
 	mergedMws := mergeMiddlewares(globalMws, rt.middlewares)
 
-	allMws := make([]middleware.Middleware, 0, len(mergedMws)+2)
+	allMws := make([]*middleware.Middleware, 0, len(mergedMws)+2)
 	allMws = append(allMws, mergedMws...)
 	allMws = append(allMws, maxBodyMw, recoveryMw)
 
@@ -157,17 +157,39 @@ func (rt *route) handle(w http.ResponseWriter, r *http.Request, cfg *proxyCfg.Co
 	handler.ServeHTTP(loggingWriter, r)
 }
 
-func mergeMiddlewares(global, route []middleware.Middleware) []middleware.Middleware {
-	// TODO: Реализовать логику замены по типу
-	result := make([]middleware.Middleware, 0, len(global)+len(route))
-	result = append(result, global...)
-	result = append(result, route...)
+func mergeMiddlewares(global, route []*middleware.Middleware) []*middleware.Middleware {
+	if len(route) == 0 {
+		return global
+	}
+
+	routeByType := make(map[middleware.Type]*middleware.Middleware)
+	for _, mw := range route {
+		routeByType[mw.Type] = mw
+	}
+
+	result := make([]*middleware.Middleware, 0, len(global)+len(route))
+
+	for _, gmw := range global {
+		if routeMw, exists := routeByType[gmw.Type]; exists {
+			result = append(result, routeMw)
+			delete(routeByType, gmw.Type)
+		} else {
+			result = append(result, gmw)
+		}
+	}
+
+	for _, mw := range route {
+		if _, exists := routeByType[mw.Type]; exists {
+			result = append(result, mw)
+		}
+	}
+
 	return result
 }
 
-func applyMiddlewares(h http.Handler, middlewares []middleware.Middleware) http.Handler {
+func applyMiddlewares(h http.Handler, middlewares []*middleware.Middleware) http.Handler {
 	for i := len(middlewares) - 1; i >= 0; i-- {
-		h = middlewares[i](h)
+		h = middlewares[i].Handler(h)
 	}
 
 	return h

@@ -186,7 +186,7 @@ func isBcryptHash(hash string) bool {
 		strings.HasPrefix(hash, "$2y")
 }
 
-func (c *MiddlewareConfig) Build() (middleware.Middleware, error) {
+func (c *MiddlewareConfig) Build() (*middleware.Middleware, error) {
 	switch c.Type {
 	case middleware.TypeRateLimit:
 		return middleware.RateLimit(&middleware.RatelimitConfig{

@@ -10,8 +10,8 @@ type RequestIDConfig struct {
 	HeaderName string
 }
 
-func RequestID(cfg *RequestIDConfig) Middleware {
-	return func(next http.Handler) http.Handler {
+func RequestID(cfg *RequestIDConfig) *Middleware {
+	handler := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			requestID := r.Header.Get(cfg.HeaderName)
@@ -24,5 +24,10 @@ func RequestID(cfg *RequestIDConfig) Middleware {
 
 			next.ServeHTTP(w, r)
 		})
+	}
+
+	return &Middleware{
+		Type:    TypeRequestID,
+		Handler: handler,
 	}
 }

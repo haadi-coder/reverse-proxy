@@ -14,6 +14,13 @@ const (
 	TypeCompress        Type = "compress"
 	TypeRequestID       Type = "request_id"
 	TypeSecurityHeaders Type = "security_headers"
+	TypeMaxRequestBody  Type = "max_request_body"
+	TypeRecovery        Type = "recovery"
 )
 
-type Middleware func(http.Handler) http.Handler
+type Handler func(http.Handler) http.Handler
+
+type Middleware struct {
+	Type    Type
+	Handler Handler
+}

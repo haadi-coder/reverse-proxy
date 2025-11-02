@@ -14,8 +14,8 @@ type BasicAuthConfig struct {
 	Realm string
 }
 
-func BasicAuth(cfg *BasicAuthConfig) Middleware {
-	return func(next http.Handler) http.Handler {
+func BasicAuth(cfg *BasicAuthConfig) *Middleware {
+	handler := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			const schema = "Basic"
 
@@ -56,6 +56,11 @@ func BasicAuth(cfg *BasicAuthConfig) Middleware {
 
 			next.ServeHTTP(w, r)
 		})
+	}
+
+	return &Middleware{
+		Type:    TypeBasicAuth,
+		Handler: handler,
 	}
 }
 
