@@ -3,11 +3,11 @@ module github.com/haadi-coder/reverse-proxy
 go 1.25.0
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/haadi-coder/filesize v0.0.0-20250714125257-edcf44796703
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	golang.org/x/crypto v0.42.0
 	golang.org/x/time v0.13.0
-	github.com/haadi-coder/passgen v0.0.0-20250926145048-f2499227e2d8
 )
 
 require (
