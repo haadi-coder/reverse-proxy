@@ -27,44 +27,45 @@ type RatelimitConfig struct {
 	limiters sync.Map
 }
 
+type ratelimitMiddleware struct {
+	cfg *RatelimitConfig
+}
+
+func (mw *ratelimitMiddleware) Type() Type {
+	return TypeRateLimit
+}
+
 // RateLimit creates a middleware that enforces rate limiting per client IP address.
 // It uses a token bucket algorithm via golang.org/x/time/rate.
 //
 // The rate is calculated as Requests per Window (e.g., 10 requests per minute).
 // Burst allows short bursts of traffic beyond the sustained rate.
 // Clients exceeding the limit receive HTTP 429 Too Many Requests.
-func RateLimit(cfg *RatelimitConfig) *Middleware {
-	handler := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip, err := getIP(r)
-			if err != nil {
-				slog.Error("failed get ip", logger.Error(err))
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-				return
-			}
+func (mw *ratelimitMiddleware) Handler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip, err := getIP(r)
+		if err != nil {
+			slog.Error("failed get ip", logger.Error(err))
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 
-			var limiter *rate.Limiter
+		var limiter *rate.Limiter
 
-			if limit, ok := cfg.limiters.Load(ip); ok {
-				limiter = limit.(*rate.Limiter)
-			} else {
-				limit = rate.NewLimiter(rate.Every(cfg.Window/time.Duration(cfg.Requests)), cfg.Burst)
-				cfg.limiters.Store(ip, limit)
-			}
+		if limit, ok := mw.cfg.limiters.Load(ip); ok {
+			limiter = limit.(*rate.Limiter)
+		} else {
+			limiter = rate.NewLimiter(rate.Every(mw.cfg.Window/time.Duration(mw.cfg.Requests)), mw.cfg.Burst)
+			mw.cfg.limiters.Store(ip, limiter)
+		}
 
-			if !limiter.Allow() {
-				http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
-				return
-			}
+		if !limiter.Allow() {
+			http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
+			return
+		}
 
-			next.ServeHTTP(w, r)
-		})
-	}
-
-	return &Middleware{
-		Type:    TypeRateLimit,
-		Handler: handler,
-	}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func getIP(r *http.Request) (string, error) {
@@ -72,7 +73,7 @@ func getIP(r *http.Request) (string, error) {
 	splitIps := strings.Split(ips, ",")
 
 	if len(splitIps) > 0 {
-		netIP := net.ParseIP(splitIps[len(splitIps)-1])
+		netIP := net.ParseIP(splitIps[0])
 		if netIP != nil {
 			return netIP.String(), nil
 		}
@@ -94,4 +95,10 @@ func getIP(r *http.Request) (string, error) {
 	}
 
 	return "", fmt.Errorf("failed to parse IP: %s", ip)
+}
+
+func RateLimit(cfg *RatelimitConfig) Middleware {
+	return &ratelimitMiddleware{
+		cfg: cfg,
+	}
 }

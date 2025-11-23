@@ -12,6 +12,7 @@ import (
 	"github.com/haadi-coder/filesize"
 	"github.com/haadi-coder/reverse-proxy/internal/config"
 	"github.com/haadi-coder/reverse-proxy/internal/lib/logger"
+	"github.com/haadi-coder/reverse-proxy/pkg/accesslog"
 	"github.com/haadi-coder/reverse-proxy/pkg/middleware"
 	"github.com/haadi-coder/reverse-proxy/pkg/proxy"
 	proxyCfg "github.com/haadi-coder/reverse-proxy/pkg/proxy/config"
@@ -137,7 +138,7 @@ func mapConfig(cliCfg *config.Config) (*proxyCfg.Config, error) {
 
 	if cliCfg.AccessLog != nil {
 		cfg.AccessLog = &proxyCfg.AccessLogConfig{
-			Format: cliCfg.AccessLog.Format,
+			Format: accesslog.Format(cliCfg.AccessLog.Format),
 		}
 	}
 
@@ -167,8 +168,8 @@ func setupLogger(cfg *config.Config) {
 	slog.SetDefault(slog.New(handler))
 }
 
-func buildMiddlewares(mwConfigs []config.MiddlewareConfig) ([]*middleware.Middleware, error) {
-	middlewares := make([]*middleware.Middleware, 0, len(mwConfigs))
+func buildMiddlewares(mwConfigs []config.MiddlewareConfig) ([]middleware.Middleware, error) {
+	middlewares := make([]middleware.Middleware, 0, len(mwConfigs))
 
 	for _, mwCfg := range mwConfigs {
 		mw, err := mwCfg.Build()

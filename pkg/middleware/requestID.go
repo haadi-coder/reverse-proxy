@@ -14,6 +14,14 @@ type RequestIDConfig struct {
 	HeaderName string
 }
 
+type requestIDMiddleware struct {
+	cfg *RequestIDConfig
+}
+
+func (mw *requestIDMiddleware) Type() Type {
+	return TypeRequestID
+}
+
 // RequestID creates a middleware that ensures every request has a unique identifier.
 //
 // It checks for an existing request ID in the configured header (cfg.HeaderName).
@@ -25,23 +33,22 @@ type RequestIDConfig struct {
 //
 // This enables end-to-end request tracing across services.
 // The generated ID is a standard UUID v4 (e.g., "a1b2c3d4-e5f6-7890-g1h2-i3j4k5l6m7n8").
-func RequestID(cfg *RequestIDConfig) *Middleware {
-	handler := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			requestID := r.Header.Get(cfg.HeaderName)
-			if requestID == "" {
-				requestID = uuid.New().String()
-			}
+func (mw *requestIDMiddleware) Handler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := r.Header.Get(mw.cfg.HeaderName)
+		if requestID == "" {
+			requestID = uuid.New().String()
+		}
 
-			r.Header.Set(cfg.HeaderName, requestID)
-			w.Header().Set(cfg.HeaderName, requestID)
+		r.Header.Set(mw.cfg.HeaderName, requestID)
+		w.Header().Set(mw.cfg.HeaderName, requestID)
 
-			next.ServeHTTP(w, r)
-		})
-	}
+		next.ServeHTTP(w, r)
+	})
+}
 
-	return &Middleware{
-		Type:    TypeRequestID,
-		Handler: handler,
+func RequestID(cfg *RequestIDConfig) Middleware {
+	return &requestIDMiddleware{
+		cfg: cfg,
 	}
 }

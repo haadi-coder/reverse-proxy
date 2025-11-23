@@ -1,11 +1,7 @@
 package config
 
-import (
-	"github.com/haadi-coder/reverse-proxy/pkg/accesslog"
-)
-
 type AccessLogConfig struct {
-	Format accesslog.AccessLogFormat `yaml:"format,omitempty"`
+	Format string `yaml:"format,omitempty"`
 }
 
 func (c *AccessLogConfig) applyDefaults() {

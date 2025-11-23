@@ -8,7 +8,7 @@ import (
 )
 
 type AccessLogConfig struct {
-	Format accesslog.AccessLogFormat
+	Format accesslog.Format
 }
 
 func (c *AccessLogConfig) validate() error {
@@ -21,11 +21,11 @@ func (c *AccessLogConfig) validate() error {
 	return nil
 }
 
-func isValidAccessLogFormat(format accesslog.AccessLogFormat) bool {
-	formats := []accesslog.AccessLogFormat{
-		accesslog.AccessLogCommon,
-		accesslog.AccessLogJSON,
-		accesslog.AccessLogCombined,
+func isValidAccessLogFormat(format accesslog.Format) bool {
+	formats := []accesslog.Format{
+		accesslog.CommonFormat,
+		accesslog.JSONFormat,
+		accesslog.CombinedFormat,
 	}
 
 	return slices.Contains(formats, format)

@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 
-	"github.com/haadi-coder/reverse-proxy/pkg/middleware"
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
@@ -66,7 +65,7 @@ func (c *Config) validate() error {
 		}
 	}
 
-	mwTypes := make(map[middleware.Type]bool)
+	mwTypes := make(map[string]bool)
 	for _, mw := range c.Middlewares {
 		if mwTypes[mw.Type] {
 			return fmt.Errorf("duplicate middleware: %s", mw.Type)

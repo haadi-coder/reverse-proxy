@@ -14,7 +14,7 @@ type SecurityHeadersConfig struct {
 	// FrameOptions sets the X-Frame-Options header.
 	// Recommended: "DENY" or "SAMEORIGIN" — mitigates clickjacking.
 	FrameOptions string
-	
+
 	// XSSProtection sets the X-XSS-Protection header.
 	// Recommended: "0" (disable) or omit entirely.
 	XSSProtection string
@@ -29,39 +29,46 @@ type SecurityHeadersConfig struct {
 	PermissionsPolicy string
 }
 
+type securityHeadersMiddleware struct {
+	cfg *SecurityHeadersConfig
+}
+
+func (mw *securityHeadersMiddleware) Type() Type {
+	return TypeSecurityHeaders
+}
+
 // SecurityHeaders creates a middleware that adds security-focused HTTP response headers.
 //
 // It applies only the headers with non-empty values from the config,
 // allowing fine-grained control and safe defaults.
-func SecurityHeaders(cfg *SecurityHeadersConfig) *Middleware {
-	handler := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if cfg.ContentTypeOptions != "" {
-				w.Header().Set("X-Content-Type-Options", cfg.ContentTypeOptions)
-			}
+func (mw *securityHeadersMiddleware) Handler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if mw.cfg.ContentTypeOptions != "" {
+			w.Header().Set("X-Content-Type-Options", mw.cfg.ContentTypeOptions)
+		}
 
-			if cfg.FrameOptions != "" {
-				w.Header().Set("X-Frame-Options", cfg.FrameOptions)
-			}
+		if mw.cfg.FrameOptions != "" {
+			w.Header().Set("X-Frame-Options", mw.cfg.FrameOptions)
+		}
 
-			if cfg.XSSProtection != "" {
-				w.Header().Set("X-XSS-Protection", cfg.XSSProtection)
-			}
+		if mw.cfg.XSSProtection != "" {
+			w.Header().Set("X-XSS-Protection", mw.cfg.XSSProtection)
+		}
 
-			if cfg.ReferrerPolicy != "" {
-				w.Header().Set("Referrer-Policy", cfg.ReferrerPolicy)
-			}
+		if mw.cfg.ReferrerPolicy != "" {
+			w.Header().Set("Referrer-Policy", mw.cfg.ReferrerPolicy)
+		}
 
-			if cfg.PermissionsPolicy != "" {
-				w.Header().Set("Permissions-Policy", cfg.PermissionsPolicy)
-			}
+		if mw.cfg.PermissionsPolicy != "" {
+			w.Header().Set("Permissions-Policy", mw.cfg.PermissionsPolicy)
+		}
 
-			next.ServeHTTP(w, r)
-		})
-	}
+		next.ServeHTTP(w, r)
+	})
+}
 
-	return &Middleware{
-		Type:    TypeSecurityHeaders,
-		Handler: handler,
+func SecurityHeaders(cfg *SecurityHeadersConfig) Middleware {
+	return &securityHeadersMiddleware{
+		cfg: cfg,
 	}
 }

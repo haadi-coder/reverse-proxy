@@ -103,41 +103,43 @@ type CompressConfig struct {
 	Types []string
 }
 
+type compressMiddleware struct {
+	cfg *CompressConfig
+}
+
+func (mw *compressMiddleware) Type() Type {
+	return TypeCompress
+}
+
 // Compress returns a middleware that compresses HTTP responses using gzip,
 // provided the client supports it (via the Accept-Encoding header), the response
 // meets the minimum size requirement, and its Content-Type is in the allowed list.
 //
 // The middleware uses a lazy-write strategy: small responses are buffered and only
 // compressed if they exceed MinSize. This avoids overhead for tiny payloads.
-func Compress(cfg *CompressConfig) *Middleware {
-	cfg.validateLevel()
+func (mw *compressMiddleware) Handler(next http.Handler) http.Handler {
+	mw.cfg.validateLevel()
 
-	handler := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			acceptEncoding := r.Header.Get("Accept-Encoding")
-			if !strings.Contains(acceptEncoding, "gzip") {
-				next.ServeHTTP(w, r)
-				return
-			}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		acceptEncoding := r.Header.Get("Accept-Encoding")
+		if !strings.Contains(acceptEncoding, "gzip") {
+			next.ServeHTTP(w, r)
+			return
+		}
 
-			gw := &gzipResponseWriter{
-				ResponseWriter: w,
-				level:          cfg.Level,
-				minSize:        cfg.MinSize,
-				allowedTypes:   cfg.Types,
-			}
-			next.ServeHTTP(gw, r)
+		gw := &gzipResponseWriter{
+			ResponseWriter: w,
+			level:          mw.cfg.Level,
+			minSize:        mw.cfg.MinSize,
+			allowedTypes:   mw.cfg.Types,
+		}
 
-			if err := gw.Close(); err != nil {
-				slog.Error("failed to close gzip writer", slog.Any("error", err))
-			}
-		})
-	}
+		next.ServeHTTP(gw, r)
 
-	return &Middleware{
-		Type:    TypeCompress,
-		Handler: handler,
-	}
+		if err := gw.Close(); err != nil {
+			slog.Error("failed to close gzip writer", slog.Any("error", err))
+		}
+	})
 }
 
 func (c *CompressConfig) validateLevel() {
@@ -147,4 +149,8 @@ func (c *CompressConfig) validateLevel() {
 		slog.Warn("invalid gzip compression level, falling back to DefaultCompression", slog.Int("provided_level", c.Level))
 		c.Level = gzip.DefaultCompression
 	}
+}
+
+func Compress(cfg *CompressConfig) Middleware {
+	return &compressMiddleware{ cfg: cfg }
 }

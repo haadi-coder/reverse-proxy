@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/haadi-coder/reverse-proxy/pkg/middleware"
 )
 
 type RouteConfig struct {
@@ -61,7 +59,7 @@ func (c *RouteConfig) validate() error {
 		return fmt.Errorf("max_idle_conns can't be negative")
 	}
 
-	mwTypes := make(map[middleware.Type]bool)
+	mwTypes := make(map[string]bool)
 	for _, mw := range c.Middlewares {
 		if mwTypes[mw.Type] {
 			return fmt.Errorf("duplicate middleware: %s", mw.Type)

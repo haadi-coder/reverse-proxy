@@ -19,13 +19,9 @@ const (
 	TypeRecovery        Type = "recovery"         // Recovers from panics and logs them gracefully.
 )
 
-// Handler is a function that wraps an http.Handler to add custom behavior.
-// It follows the standard Go middleware pattern: it takes a handler and returns a new one.
-type Handler func(http.Handler) http.Handler
-
 // Middleware represents a configured middleware instance.
 // It combines a handler function with a type identifier for introspection and management.
-type Middleware struct {
-	Type    Type    // Type identifies the kind of middleware (e.g., "cors", "basic_auth").
-	Handler Handler // Handler contains the actual middleware logic that wraps the next handler in the chain.
+type Middleware interface {
+	Type() Type       // Type identifies the kind of middleware (e.g., "cors", "basic_auth").
+	Handler(http.Handler) http.Handler // Handler contains the actual middleware logic that wraps the next handler in the chain.
 }

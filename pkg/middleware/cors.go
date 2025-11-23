@@ -37,6 +37,14 @@ type CORSConfig struct {
 	MaxAge time.Duration
 }
 
+type corsMiddleware struct {
+	cfg *CORSConfig
+}
+
+func (mw *corsMiddleware) Type() Type {
+	return TypeCORS
+}
+
 // CORS returns a middleware that implements Cross-Origin Resource Sharing (CORS) protection.
 // It inspects the "Origin" header of incoming requests and enforces the configured policy.
 //
@@ -44,53 +52,52 @@ type CORSConfig struct {
 // For preflight (OPTIONS) requests, it responds with CORS headers and a 204 No Content status.
 //
 // If the origin is not in AllowedOrigins, the middleware responds with 403 Forbidden.
-func CORS(cfg *CORSConfig) *Middleware {
-	exposedHeaders := strings.Join(cfg.ExposedHeaders, ",")
-	allowedMethods := strings.Join(cfg.AllowedMethods, ",")
-	allowedHeaders := strings.Join(cfg.AllowedHeaders, ",")
+func (mw *corsMiddleware) Handler(next http.Handler) http.Handler {
+	exposedHeaders := strings.Join(mw.cfg.ExposedHeaders, ",")
+	allowedMethods := strings.Join(mw.cfg.AllowedMethods, ",")
+	allowedHeaders := strings.Join(mw.cfg.AllowedHeaders, ",")
 
-	handler := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			origin := r.Header.Get("Origin")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
 
-			if origin == "" {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			if !slices.Contains(cfg.AllowedOrigins, origin) {
-				http.Error(w, "CORS policy: Origin not allowed", http.StatusForbidden)
-				return
-			}
-
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-
-			if cfg.AllowCredentials {
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
-			}
-
-			if exposedHeaders != "" {
-				w.Header().Set("Access-Control-Expose-Headers", exposedHeaders)
-			}
-
-			if r.Method == http.MethodOptions {
-				w.Header().Set("Access-Control-Allow-Methods", allowedMethods)
-				w.Header().Set("Access-Control-Max-Age", strconv.Itoa(int(cfg.MaxAge.Seconds())))
-
-				if allowedHeaders != "" {
-					w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
-				}
-
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-
+		if origin == "" {
 			next.ServeHTTP(w, r)
-		})
-	}
+			return
+		}
 
-	return &Middleware{
-		Type:    TypeCORS,
-		Handler: handler,
+		if !slices.Contains(mw.cfg.AllowedOrigins, origin) {
+			http.Error(w, "CORS policy: Origin not allowed", http.StatusForbidden)
+			return
+		}
+
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+
+		if mw.cfg.AllowCredentials {
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
+
+		if exposedHeaders != "" {
+			w.Header().Set("Access-Control-Expose-Headers", exposedHeaders)
+		}
+
+		if r.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Methods", allowedMethods)
+			w.Header().Set("Access-Control-Max-Age", strconv.Itoa(int(mw.cfg.MaxAge.Seconds())))
+
+			if allowedHeaders != "" {
+				w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
+			}
+
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func CORS(cfg *CORSConfig) Middleware {
+	return &corsMiddleware{
+		cfg: cfg,
 	}
 }
