@@ -117,7 +117,7 @@ func (l *AccessLogger) formatCommon(entry *Entry) string {
 		username = "-"
 	}
 
-	line := fmt.Sprintf("%s - %s [%s] \"%s %s %s\" %d %d\n",
+	return fmt.Sprintf("%s - %s [%s] \"%s %s %s\" %d %d\n",
 		entry.IP,
 		username,
 		entry.Time.Format("02/Jan/2006:15:04:05 -0700"),
@@ -127,8 +127,6 @@ func (l *AccessLogger) formatCommon(entry *Entry) string {
 		entry.Status,
 		entry.Size,
 	)
-
-	return line
 }
 
 func (l *AccessLogger) formatCombined(entry *Entry) string {
@@ -147,7 +145,7 @@ func (l *AccessLogger) formatCombined(entry *Entry) string {
 		userAgent = "-"
 	}
 
-	line := fmt.Sprintf("%s - %s [%s] \"%s %s %s\" %d %d \"%s\" \"%s\"\n",
+	return fmt.Sprintf("%s - %s [%s] \"%s %s %s\" %d %d \"%s\" \"%s\"\n",
 		entry.IP,
 		username,
 		entry.Time.Format("02/Jan/2006:15:04:05 -0700"),
@@ -159,8 +157,6 @@ func (l *AccessLogger) formatCombined(entry *Entry) string {
 		referer,
 		userAgent,
 	)
-
-	return line
 }
 
 func (l *AccessLogger) formatJSON(entry *Entry) (string, error) {

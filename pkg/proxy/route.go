@@ -81,8 +81,6 @@ func newRoute(backend *url.URL, opts ...RouteOption) *route {
 }
 
 func (rt *route) handle(w http.ResponseWriter, r *http.Request, cfg *proxyCfg.Config, globalMws []middleware.Middleware, accessLogger *accesslog.AccessLogger) {
-	startTime := time.Now()
-
 	backendURL := *rt.backend
 	backendURL.Path = path.Join(backendURL.Path, r.URL.Path)
 	backendURL.RawQuery = r.URL.RawQuery
@@ -129,27 +127,21 @@ func (rt *route) handle(w http.ResponseWriter, r *http.Request, cfg *proxyCfg.Co
 		}
 	})
 
-	loggingWriter := &accesslog.ResponseWriter{ResponseWriter: w, ContentLength: 0, StatusCode: http.StatusOK}
+	userMiddlewares := mergeMiddlewares(globalMws, rt.middlewares)
+	handler := applyMiddlewares(baseHandler, userMiddlewares)
 
-	defer func() {
-		err := accessLogger.Log(r, loggingWriter, startTime)
+	internalMws := []internalMiddleware{
+		&maxRequestBodyMiddleware{maxBytes: cfg.Server.MaxHeaderBytes},
+		&recoveryMiddleware{},
+	}
+	handler = applyInternalMiddlewares(handler, internalMws)
 
-		if err != nil {
-			slog.Error("failed to make accesslog: %w", logger.Error(err))
-		}
-	}()
+	if accessLogger != nil {
+		accesslogMw := &accesslog.Middleware{Logger: accessLogger}
+		handler = accesslogMw.Handler(handler)
+	}
 
-	maxBodyMw := middleware.MaxRequestBody(cfg.Server.MaxRequestBody)
-	recoveryMw := middleware.Recovery()
-
-	mergedMws := mergeMiddlewares(globalMws, rt.middlewares)
-
-	allMws := make([]middleware.Middleware, 0, len(mergedMws)+2)
-	allMws = append(allMws, mergedMws...)
-	allMws = append(allMws, maxBodyMw, recoveryMw)
-
-	handler := applyMiddlewares(baseHandler, allMws)
-	handler.ServeHTTP(loggingWriter, r)
+	handler.ServeHTTP(w, r)
 }
 
 func mergeMiddlewares(global, route []middleware.Middleware) []middleware.Middleware {
