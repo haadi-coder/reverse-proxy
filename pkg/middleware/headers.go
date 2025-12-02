@@ -33,6 +33,12 @@ type headersMiddleware struct {
 	cfg *HeadersConfig
 }
 
+func Headers(cfg *HeadersConfig) Middleware {
+	return &headersMiddleware{
+		cfg: cfg,
+	}
+}
+
 func (mw *headersMiddleware) Type() Type {
 	return TypeHeaders
 }
@@ -72,11 +78,5 @@ func applyHeaders(h http.Header, cfg *HeaderRules) {
 
 	for _, v := range cfg.Remove {
 		h.Del(v)
-	}
-}
-
-func Headers(cfg *HeadersConfig) Middleware {
-	return &headersMiddleware{
-		cfg: cfg,
 	}
 }

@@ -107,6 +107,10 @@ type compressMiddleware struct {
 	cfg *CompressConfig
 }
 
+func Compress(cfg *CompressConfig) Middleware {
+	return &compressMiddleware{cfg: cfg}
+}
+
 func (mw *compressMiddleware) Type() Type {
 	return TypeCompress
 }
@@ -149,8 +153,4 @@ func (c *CompressConfig) validateLevel() {
 		slog.Warn("invalid gzip compression level, falling back to DefaultCompression", slog.Int("provided_level", c.Level))
 		c.Level = gzip.DefaultCompression
 	}
-}
-
-func Compress(cfg *CompressConfig) Middleware {
-	return &compressMiddleware{ cfg: cfg }
 }

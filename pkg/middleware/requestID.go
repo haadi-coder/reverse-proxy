@@ -18,6 +18,12 @@ type requestIDMiddleware struct {
 	cfg *RequestIDConfig
 }
 
+func RequestID(cfg *RequestIDConfig) Middleware {
+	return &requestIDMiddleware{
+		cfg: cfg,
+	}
+}
+
 func (mw *requestIDMiddleware) Type() Type {
 	return TypeRequestID
 }
@@ -45,10 +51,4 @@ func (mw *requestIDMiddleware) Handler(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-func RequestID(cfg *RequestIDConfig) Middleware {
-	return &requestIDMiddleware{
-		cfg: cfg,
-	}
 }

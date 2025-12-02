@@ -33,6 +33,12 @@ type securityHeadersMiddleware struct {
 	cfg *SecurityHeadersConfig
 }
 
+func SecurityHeaders(cfg *SecurityHeadersConfig) Middleware {
+	return &securityHeadersMiddleware{
+		cfg: cfg,
+	}
+}
+
 func (mw *securityHeadersMiddleware) Type() Type {
 	return TypeSecurityHeaders
 }
@@ -65,10 +71,4 @@ func (mw *securityHeadersMiddleware) Handler(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-func SecurityHeaders(cfg *SecurityHeadersConfig) Middleware {
-	return &securityHeadersMiddleware{
-		cfg: cfg,
-	}
 }

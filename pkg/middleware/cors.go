@@ -41,6 +41,12 @@ type corsMiddleware struct {
 	cfg *CORSConfig
 }
 
+func CORS(cfg *CORSConfig) Middleware {
+	return &corsMiddleware{
+		cfg: cfg,
+	}
+}
+
 func (mw *corsMiddleware) Type() Type {
 	return TypeCORS
 }
@@ -94,10 +100,4 @@ func (mw *corsMiddleware) Handler(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-func CORS(cfg *CORSConfig) Middleware {
-	return &corsMiddleware{
-		cfg: cfg,
-	}
 }

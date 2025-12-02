@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/google/uuid v1.6.0
 	github.com/haadi-coder/filesize v0.0.0-20250714125257-edcf44796703
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	golang.org/x/crypto v0.42.0
 	golang.org/x/time v0.13.0

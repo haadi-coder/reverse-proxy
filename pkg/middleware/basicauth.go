@@ -9,6 +9,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const (
+	schema                = "Basic "
+	dummyBcryptHash       = "$2a$10$dummy.hash.to.prevent.timing.attack"
+)
+
 // BasicAuthConfig holds the configuration for the Basic Authentication middleware.
 type BasicAuthConfig struct {
 	Users map[string]string // Users is a map where keys are usernames and values are bcrypt-hashed passwords.
@@ -17,6 +22,10 @@ type BasicAuthConfig struct {
 
 type basicAuthMiddleware struct {
 	cfg *BasicAuthConfig
+}
+
+func BasicAuth(cfg *BasicAuthConfig) Middleware {
+	return &basicAuthMiddleware{cfg: cfg}
 }
 
 func (mw *basicAuthMiddleware) Type() Type {
@@ -32,8 +41,6 @@ func (mw *basicAuthMiddleware) Type() Type {
 // even for non-existent users.
 func (mw *basicAuthMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		const schema = "Basic"
-
 		auth := r.Header.Get("Authorization")
 		if auth == "" {
 			authenticate(w, mw.cfg.Realm)
@@ -45,7 +52,7 @@ func (mw *basicAuthMiddleware) Handler(next http.Handler) http.Handler {
 			return
 		}
 
-		rawCredentials := auth[len(schema)+1:]
+		rawCredentials := auth[len(schema):]
 
 		credentials, err := base64.StdEncoding.DecodeString(rawCredentials)
 		if err != nil {
@@ -67,7 +74,7 @@ func (mw *basicAuthMiddleware) Handler(next http.Handler) http.Handler {
 			// Perform a dummy bcrypt comparison to maintain constant-time behavior
 			// and mitigate timing attacks.
 			_ = bcrypt.CompareHashAndPassword(
-				[]byte("$2a$10$dummy.hash.to.prevent.timing.attack"),
+				[]byte(dummyBcryptHash),
 				[]byte(password),
 			)
 
@@ -87,8 +94,4 @@ func (mw *basicAuthMiddleware) Handler(next http.Handler) http.Handler {
 func authenticate(w http.ResponseWriter, realm string) {
 	w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Basic realm="%s"`, realm))
 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
-}
-
-func BasicAuth(cfg *BasicAuthConfig) Middleware {
-	return &basicAuthMiddleware{ cfg: cfg }
 }

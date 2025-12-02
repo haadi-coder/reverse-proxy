@@ -6,11 +6,16 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/haadi-coder/reverse-proxy/internal/lib/logger"
+	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"golang.org/x/time/rate"
+)
+
+const (
+	lruCapacity = 1000
+	lruTTL      = 15 * time.Minute
 )
 
 // RatelimitConfig holds configuration for the rate limiting middleware.
@@ -23,12 +28,20 @@ type RatelimitConfig struct {
 
 	// Burst is the maximum burst size of requests allowed instantly.
 	Burst int
-
-	limiters sync.Map
 }
 
 type ratelimitMiddleware struct {
-	cfg *RatelimitConfig
+	cfg   *RatelimitConfig
+	cache *lru.LRU[string, *rate.Limiter]
+}
+
+func RateLimit(cfg *RatelimitConfig) Middleware {
+	cache := lru.NewLRU[string, *rate.Limiter](lruCapacity, nil, lruTTL)
+
+	return &ratelimitMiddleware{
+		cfg:   cfg,
+		cache: cache,
+	}
 }
 
 func (mw *ratelimitMiddleware) Type() Type {
@@ -50,13 +63,14 @@ func (mw *ratelimitMiddleware) Handler(next http.Handler) http.Handler {
 			return
 		}
 
-		var limiter *rate.Limiter
+		limiter, ok := mw.cache.Get(ip)
 
-		if limit, ok := mw.cfg.limiters.Load(ip); ok {
-			limiter = limit.(*rate.Limiter)
-		} else {
-			limiter = rate.NewLimiter(rate.Every(mw.cfg.Window/time.Duration(mw.cfg.Requests)), mw.cfg.Burst)
-			mw.cfg.limiters.Store(ip, limiter)
+		if !ok {
+			limiter = rate.NewLimiter(
+				rate.Every(mw.cfg.Window/time.Duration(mw.cfg.Requests)),
+				mw.cfg.Burst,
+			)
+			mw.cache.Add(ip, limiter)
 		}
 
 		if !limiter.Allow() {
@@ -95,10 +109,4 @@ func getIP(r *http.Request) (string, error) {
 	}
 
 	return "", fmt.Errorf("failed to parse IP: %s", ip)
-}
-
-func RateLimit(cfg *RatelimitConfig) Middleware {
-	return &ratelimitMiddleware{
-		cfg: cfg,
-	}
 }
